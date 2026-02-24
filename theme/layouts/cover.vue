@@ -1,16 +1,7 @@
 <template>
   <div class="slidev-layout cover h-full w-full grid place-content-center text-center relative overflow-hidden" style="background: #262335;">
-    <!-- Retro grid floor -->
-    <div class="absolute inset-0">
-      <div class="absolute bottom-0 left-0 right-0 h-2/5" style="
-        background-image: linear-gradient(rgba(255, 126, 219, 0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 126, 219, 0.15) 1px, transparent 1px);
-        background-size: 60px 60px;
-        transform: perspective(300px) rotateX(60deg);
-        transform-origin: bottom;
-      "></div>
-      <!-- Horizon glow — pushed down to 65% so title has clear space -->
-      <div class="absolute left-0 right-0" style="top: 65%; height: 4px; background: linear-gradient(90deg, transparent, #ff7edb, #36f9f6, #ff7edb, transparent); box-shadow: 0 0 30px #ff7edb, 0 0 60px rgba(255,126,219,0.3);"></div>
-    </div>
+    <!-- Horizon glow line -->
+    <div class="absolute left-0 right-0" style="top: 60%; height: 4px; background: linear-gradient(90deg, transparent, #ff7edb, #36f9f6, #ff7edb, transparent); box-shadow: 0 0 30px #ff7edb, 0 0 60px rgba(255,126,219,0.3);"></div>
     <div class="relative z-10 pb-24">
       <slot />
     </div>
