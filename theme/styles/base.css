@@ -17,6 +17,30 @@
   width: 100%;
 }
 
+/* Retro grid on every slide via pseudo-element */
+.slidev-layout::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 40%;
+  background-image:
+    linear-gradient(rgba(255, 126, 219, 0.15) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 126, 219, 0.15) 1px, transparent 1px);
+  background-size: 60px 60px;
+  transform: perspective(300px) rotateX(60deg);
+  transform-origin: bottom;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Make sure layout content sits above the grid */
+.slidev-layout > * {
+  position: relative;
+  z-index: 1;
+}
+
 /* Fix black gap — body and slide container */
 body,
 #app,
