@@ -8,32 +8,38 @@ This is a monorepo containing all presentation decks for the channel. Each deck 
 
 ## Quick Start
 
+### Install dependencies
+
+```bash
+bun install
+```
+
 ### Run a deck in dev mode
 
 ```bash
-npx slidev decks/dnd-agent/slides.md
+bunx slidev decks/dnd-agent/slides.md
 ```
 
-Or use the npm scripts for the default deck:
+Or use the scripts for the default deck:
 
 ```bash
-npm run dev
+bun run dev
 ```
 
 ### Build for production
 
 ```bash
-npm run build
+bun run build
 # or for a specific deck:
-npx slidev build decks/dnd-agent/slides.md
+bunx slidev build decks/dnd-agent/slides.md
 ```
 
 ### Export to PDF / PNG
 
 ```bash
-npm run export
+bun run export
 # or for a specific deck:
-npx slidev export decks/dnd-agent/slides.md
+bunx slidev export decks/dnd-agent/slides.md
 ```
 
 ## Synthwave '84 Theme
@@ -99,7 +105,7 @@ mdc: true
 4. Run it:
 
 ```bash
-npx slidev decks/<your-deck-name>/slides.md
+bunx slidev decks/<your-deck-name>/slides.md
 ```
 
 ## Repository Structure
