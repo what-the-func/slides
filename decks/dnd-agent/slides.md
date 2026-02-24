@@ -185,6 +185,29 @@ And underneath it all, llama.cpp does the actual inference with hardware acceler
 
 ---
 
+## Stack Diagram
+
+```mermaid {theme: 'dark'}
+graph TD
+    A["🎮 Your Agent Code<br/><b>Fantasy API</b>"]:::fantasy
+    B["⚙️ Kronk Provider<br/>Downloads models + libs"]:::kronk
+    C["🔮 yzma<br/>purego FFI — No CGo"]:::yzma
+    D["🖥️ llama.cpp<br/>CUDA · Metal · Vulkan · CPU"]:::llama
+
+    A --> B --> C --> D
+
+    classDef fantasy fill:#1a3a5c,stroke:#36f9f6,stroke-width:2px,color:#36f9f6
+    classDef kronk fill:#2d1a3e,stroke:#ff7edb,stroke-width:2px,color:#ff7edb
+    classDef yzma fill:#2e2a10,stroke:#fede5d,stroke-width:2px,color:#fede5d
+    classDef llama fill:#1e1e1e,stroke:#848bbd,stroke-width:2px,color:#848bbd
+```
+
+<!--
+At the top, Fantasy gives you the agent API. It talks to Kronk, which manages model downloads and inference lifecycle. Kronk uses yzma underneath — pure Go FFI to llama.cpp. And llama.cpp does the actual GPU-accelerated inference. Each layer does exactly one thing.
+-->
+
+---
+
 ## The Magic: Zero Setup
 
 <v-clicks>
@@ -216,6 +239,31 @@ There are actually two ways to use this stack, and they suit different situation
 ---
 
 ## Two Approaches
+
+```mermaid {theme: 'dark'}
+graph TD
+    S["Choose Your Path"]:::decide
+
+    S -->|"Most agents"| L["<b>Fantasy + Kronk</b><br/>Agent loop · Tools · Streaming"]:::path1
+    S -->|"Full control"| R["<b>yzma Direct</b><br/>Token-by-token · Custom sampling"]:::path2
+
+    L --> L1["Chatbots"]:::use
+    L --> L2["Games"]:::use
+    L --> L3["Assistants"]:::use
+
+    R --> R1["Embeddings"]:::use
+    R --> R2["Vision/Audio"]:::use
+    R --> R3["Pipelines"]:::use
+
+    classDef decide fill:#2e2a10,stroke:#fede5d,stroke-width:2px,color:#fede5d
+    classDef path1 fill:#1a3a5c,stroke:#36f9f6,stroke-width:2px,color:#36f9f6
+    classDef path2 fill:#2d1a3e,stroke:#ff7edb,stroke-width:2px,color:#ff7edb
+    classDef use fill:#1e1e1e,stroke:#848bbd,stroke-width:1px,color:#848bbd
+```
+
+---
+
+## The Details
 
 <div class="grid grid-cols-2 gap-8 mt-4">
 
@@ -618,6 +666,36 @@ Two things worth noting. The q8_0 KV cache quantization cuts VRAM roughly in hal
 
 <!--
 And the 1.5 presence penalty is a Qwen3-specific recommendation for quantized models — reduces repetitive output.
+-->
+
+---
+
+## The Agent Flow
+
+```mermaid {theme: 'dark'}
+sequenceDiagram
+    participant P as 🎮 Player
+    participant A as 🤖 Fantasy Agent
+    participant T as 🔧 Tools
+    participant K as ⚙️ Kronk/yzma
+
+    A->>K: Stream(prompt + history)
+    K-->>A: 💭 Reasoning tokens
+    K-->>A: 📝 Text delta
+    K-->>A: 🔧 Tool call: lookup_monster
+    A->>T: lookupMonster("owlbear")
+    T-->>A: AC 13, HP 59, multiattack...
+    K-->>A: 🔧 Tool call: roll_dice
+    A->>T: rollDice(1, 20, 5)
+    T-->>A: Rolling 1d20+5: [14] = 19
+    K-->>A: 🔧 Tool call: ask_player
+    A->>P: "What do you do?"
+    P-->>A: "Cast Fireball"
+    A->>K: Continue (with history)
+```
+
+<!--
+Here's the flow for one turn. Fantasy sends the prompt and history to Kronk, which streams back reasoning tokens, text, and tool calls. The agent executes each tool — monster lookup hits the API, dice roller uses crypto/rand, ask_player waits for stdin. Then the results feed back into the next turn.
 -->
 
 ---
