@@ -1,7 +1,7 @@
 ---
 theme: ../../theme
 title: "Build a Local AI Dungeon Master in Go"
-transition: slide-left
+transition: view-transition
 mdc: true
 ---
 
