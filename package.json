@@ -1,0 +1,25 @@
+{
+  "name": "what-the-func-slides",
+  "version": "1.0.0",
+  "description": "Presentation slides for What The Func? YouTube channel — powered by Slidev",
+  "scripts": {
+    "dev": "slidev decks/dnd-agent/slides.md",
+    "build": "slidev build decks/dnd-agent/slides.md",
+    "export": "slidev export decks/dnd-agent/slides.md"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/what-the-func/slides.git"
+  },
+  "keywords": [],
+  "author": "Ed Zynda <ezynda@what-the-func.com>",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/what-the-func/slides/issues"
+  },
+  "homepage": "https://github.com/what-the-func/slides#readme",
+  "dependencies": {
+    "@slidev/cli": "^52.12.0",
+    "@slidev/theme-default": "^0.25.0"
+  }
+}
