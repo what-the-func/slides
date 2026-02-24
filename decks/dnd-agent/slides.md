@@ -29,8 +29,6 @@ So most Go developers just gave up. Paid for a cloud API. Sent their data off-ma
 
 ---
 
-## CGo: The Old Way
-
 <v-clicks>
 
 - Go ↔ C boundary = **debugging nightmare**
@@ -48,8 +46,6 @@ So most Go developers just gave up. Paid for a cloud API. Sent their data off-ma
 
 ---
 
-## `purego` Changed Everything
-
 <v-clicks>
 
 - **yzma** by Hybridgroup — `purego` FFI to llama.cpp
@@ -63,8 +59,6 @@ Here's what changed. One project — yzma by Hybridgroup — figured out how to 
 -->
 
 ---
-
-## About Me
 
 <v-clicks>
 
@@ -81,8 +75,6 @@ And what I'm seeing is a genuine shift. The Go AI stack is real, it's production
 -->
 
 ---
-
-## Today's Agenda
 
 <v-clicks>
 
@@ -133,8 +125,6 @@ Three projects. Three layers. Each one does exactly one thing.
 
 ---
 
-## Architecture
-
 <v-clicks>
 
 <NeonBox color="cyan">
@@ -172,8 +162,6 @@ And underneath it all, llama.cpp does the actual inference with hardware acceler
 
 ---
 
-## Stack Diagram
-
 ```mermaid {theme: 'dark'}
 graph TD
     A["🎮 Your Agent Code<br/><b>Fantasy API</b>"]:::fantasy
@@ -194,8 +182,6 @@ At the top, Fantasy gives you the agent API. It talks to Kronk, which manages mo
 -->
 
 ---
-
-## Zero Setup
 
 <v-clicks>
 
@@ -225,8 +211,6 @@ There are actually two ways to use this stack, and they suit different situation
 
 ---
 
-## Two Approaches
-
 ```mermaid {theme: 'dark'}
 graph TD
     S["Choose Your Path"]:::decide
@@ -249,8 +233,6 @@ graph TD
 ```
 
 ---
-
-## The Details
 
 <div class="grid grid-cols-2 gap-8 mt-4">
 
@@ -312,8 +294,6 @@ Let me show you how little setup this actually takes — because this is one of 
 
 ---
 
-## Project Init
-
 ```bash
 mkdir dnd-agent
 cd dnd-agent
@@ -345,8 +325,6 @@ And here's something worth noting about Fantasy specifically — this is the fra
 
 ---
 
-## What We're Building
-
 The Dungeon Master needs **four tools**:
 
 <v-clicks>
@@ -375,8 +353,6 @@ We're using the D&D 5e API at dnd5eapi.co — free, no auth required, full SRD b
 
 ---
 
-## Hardware & Model
-
 <v-clicks>
 
 - **Model:** Qwen3-8B @ Q5_K_M (~6GB)
@@ -392,8 +368,6 @@ On hardware: we're using Qwen3-8B at Q5_K_M quantization — about 6GB for the m
 -->
 
 ---
-
-## System Prompt
 
 ```go
 const systemPrompt = `You are a D&D 5e Dungeon Master.
@@ -432,7 +406,7 @@ I get these objections every time I talk about AI in Go. Every time. And look �
 
 ---
 
-## Myth 1: "Go can't do AI natively"
+### "Go can't do AI natively"
 
 <v-clicks>
 
@@ -452,7 +426,7 @@ Compare that to Python's LangChain: a 300MB install, a sea of configuration clas
 
 ---
 
-## Myth 2: "You need Python for local inference"
+### "You need Python for local inference"
 
 <v-clicks>
 
@@ -472,7 +446,7 @@ This is not a toy wrapper. Crush uses Fantasy. OpenClaw uses PI — the TypeScri
 
 ---
 
-## Myth 3: "Local inference is too slow"
+### "Local inference is too slow"
 
 <v-clicks>
 
@@ -657,8 +631,6 @@ And the 1.5 presence penalty is a Qwen3-specific recommendation for quantized mo
 
 ---
 
-## Agent Flow
-
 ```mermaid {theme: 'dark'}
 sequenceDiagram
     participant P as 🎮 Player
@@ -720,10 +692,6 @@ Each iteration is one DM turn. Fantasy doesn't maintain conversation history bet
 -->
 
 ---
-
-## Tool Descriptions
-
-*Where the real magic is*
 
 ```go
 func playerTool() fantasy.AgentTool {
@@ -797,7 +765,7 @@ The select on ctx.Done() is the key. When you Ctrl+C, the signal context cancels
 
 ---
 
-## Dice Roller: A Lesson in Typed Parameters
+## roll_dice
 
 ```go
 type diceQuery struct {
@@ -837,7 +805,7 @@ We learned this the hard way: originally tried a string input like "2d6+5". The 
 
 ---
 
-## Monster Lookup
+## lookup_monster
 
 ```go {*|1-3|5-12|14-22}{lines:true}
 type monsterQuery struct {
@@ -1007,7 +975,7 @@ This spins up an OpenAI-compatible API at localhost:8080. Point any tool that sp
 
 ---
 
-## Where to Take This
+## What's Next
 
 <v-clicks>
 
