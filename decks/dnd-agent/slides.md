@@ -17,7 +17,7 @@ Building a fully local AI agent in Go — with tool calling, streaming, and chai
 layout: section
 ---
 
-# The Pain Point
+# The Problem with CGo
 
 <!--
 And I know that because I spent way too long trying to do this the *wrong* way.
@@ -48,7 +48,7 @@ So most Go developers just gave up. Paid for a cloud API. Sent their data off-ma
 
 ---
 
-## The Breakthrough: `purego`
+## `purego` Changed Everything
 
 <v-clicks>
 
@@ -64,14 +64,13 @@ Here's what changed. One project — yzma by Hybridgroup — figured out how to 
 
 ---
 
-## Credibility Check
+## About Me
 
 <v-clicks>
 
-- I run **What The Func** — Go in the real world
-- At **Mark3labs**, we build Go AI tooling
-- We shipped **mcp-go** — one of the most-used MCP libraries in Go
-- What I'm seeing is a **genuine shift**
+- **What The Func** — Go in the real world
+- **Mark3labs** — Go tools for the AI ecosystem
+- **mcp-go** — one of the most-used MCP libraries in Go
 
 </v-clicks>
 
@@ -83,7 +82,7 @@ And what I'm seeing is a genuine shift. The Go AI stack is real, it's production
 
 ---
 
-## What You'll See Today
+## Today's Agenda
 
 <v-clicks>
 
@@ -108,19 +107,7 @@ Both the high-level agent approach AND the raw inference path, so you understand
 
 ---
 
-## The Plan
-
-<v-clicks>
-
-1. **The Stack** — Fantasy, Kronk, yzma architecture
-2. **Two Paths** — agent framework vs raw inference
-3. **Myth-Busting** — "Go can't do AI"
-4. **Build It** — the full Dungeon Master code
-5. **Go Deeper** — raw yzma + Kronk server
-
-</v-clicks>
-
-<div v-click class="mt-8 text-center">
+<div class="mt-8 text-center">
   <GlowText color="cyan">Let's roll initiative.</GlowText>
 </div>
 
@@ -146,7 +133,7 @@ Three projects. Three layers. Each one does exactly one thing.
 
 ---
 
-## The Architecture
+## Architecture
 
 <v-clicks>
 
@@ -208,7 +195,7 @@ At the top, Fantasy gives you the agent API. It talks to Kronk, which manages mo
 
 ---
 
-## The Magic: Zero Setup
+## Zero Setup
 
 <v-clicks>
 
@@ -406,7 +393,7 @@ On hardware: we're using Qwen3-8B at Q5_K_M quantization — about 6GB for the m
 
 ---
 
-## The System Prompt
+## System Prompt
 
 ```go
 const systemPrompt = `You are a D&D 5e Dungeon Master.
@@ -521,7 +508,7 @@ Here's the full main.go. I'll walk through the key pieces.
 
 ---
 
-## The Imports
+## Imports
 
 ```go
 package main
@@ -670,7 +657,7 @@ And the 1.5 presence penalty is a Qwen3-specific recommendation for quantized mo
 
 ---
 
-## The Agent Flow
+## Agent Flow
 
 ```mermaid {theme: 'dark'}
 sequenceDiagram
@@ -700,7 +687,7 @@ Here's the flow for one turn. Fantasy sends the prompt and history to Kronk, whi
 
 ---
 
-## The Game Loop
+## Game Loop
 
 ```go
 func gameLoop(sigCtx context.Context, agent fantasy.Agent) error {
@@ -770,7 +757,7 @@ Notice how the descriptions do the heavy lifting. "You must call this whenever i
 
 ---
 
-## The ask_player Tool
+## ask_player
 
 ```go {*|6-9|11-12|14-24}{lines:true}
 type askPlayerInput struct {
