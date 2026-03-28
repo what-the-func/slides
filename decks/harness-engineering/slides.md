@@ -1,48 +1,46 @@
 ---
 theme: ../../theme
-title: "Harness Engineering: Agent Loops, Coding Agents & Building Your Own"
+title: "Harness Engineering: From Agent Loop to Your Own Harness"
 transition: slide-left
 mdc: true
 ---
 
 # Harness Engineering
 
-A gentle guide to agent loops, coding agents, and building your own.
+From “what is an agent harness?” to “should I build one?”
 
 <!--
-Welcome — today we're going to demystify something that sounds intimidating but is actually really simple: agent loops, and the harnesses that wrap around them.
+Hey everyone. Today we're going to talk about harness engineering.
 
-Full disclosure: I built one of the tools we're going to look at today — Kit, an open-source coding agent written in Go. So this isn't just a survey of the landscape. This is me showing you how I think about this stuff, and why I made the choices I made when building it.
+We'll start with what an agent loop actually is, then look at what a harness does around that loop, walk through how some real coding agents work, and finish with why and how you might build your own.
 
-We'll start from the ground up — what the loop is, what a harness actually means, how to build one — and then look at real examples, including the project that inspired me to build Kit in the first place.
+The goal is pretty straightforward: by the end of this, you should be able to look at any coding agent and understand the moving parts. And if you need to, you'll know how to build one yourself.
 
-If you're new here — on What The Func we talk about AI, coding, and building real things with Go. Subscribe, hit the bell, and let's get into it.
+Let's get into it.
 -->
 
 ---
 layout: section
 ---
 
-# The Agent Loop
+# Part 1
 
-Just a while loop
+## Start with the loop
 
 <!--
-Let's start with the foundation. An agent loop. Strip away all the marketing and the magic, and it's just a while loop.
-
-The model thinks, picks a tool, sees the result, and repeats. That's it.
+Alright, so Part 1. We're going to start at the foundation. Before we talk about products or frameworks or any of that, let's make sure we're all on the same page about what an agent loop is.
 -->
 
 ---
 
 ```mermaid {theme: 'dark'}
 graph LR
-    A["📝 Prompt"]:::prompt --> B["🧠 LLM Thinks"]:::llm
-    B --> C{"Tool Call?"}:::decision
-    C -- Yes --> D["⚙️ Execute Tool"]:::tool
-    D --> E["👁️ Observe Result"]:::observe
+    A["📝 Prompt"]:::prompt --> B["🧠 Model reasons"]:::llm
+    B --> C{"Tool call?"}:::decision
+    C -- Yes --> D["⚙️ Run tool"]:::tool
+    D --> E["👁️ Add result to context"]:::observe
     E --> B
-    C -- No --> F["✅ Return Answer"]:::done
+    C -- No --> F["✅ Return final response"]:::done
 
     classDef prompt fill:#2d1a3e,stroke:#ff7edb,stroke-width:2px,color:#ff7edb
     classDef llm fill:#1a3a5c,stroke:#36f9f6,stroke-width:2px,color:#36f9f6
@@ -52,123 +50,257 @@ graph LR
     classDef done fill:#2d1a3e,stroke:#ff7edb,stroke-width:2px,color:#ff7edb
 ```
 
-
-<GlowText color="cyan">No magic. Just a loop.</GlowText>
-
+<GlowText color="cyan">Everything else is implementation detail.</GlowText>
 
 <!--
-Here's the loop visualised. Prompt comes in. The LLM thinks. If it wants to call a tool, it does. The result goes back in. The model thinks again. When it has nothing left to do, it returns the final answer.
+So here's the core idea. An agent loop is really just a while loop.
 
-That's the entire thing. Every coding agent you've ever used — Claude Code, Cursor, Copilot Workspace — is this loop with different tools bolted on.
+You give the model a prompt. It thinks about what to do. If it decides it needs to use a tool, it calls one, gets the result back, and thinks again. It keeps going until it decides it has an answer, and then it stops.
+
+That's it. There's no secret sauce here. Everything else we're going to talk about today is just implementation detail on top of this basic cycle.
+
+If this diagram makes sense to you, the rest of the talk is going to click.
 -->
 
 ---
 
-## Every Loop Has 4 Parts
-
+## Every loop has 4 moving parts
 
 <NeonBox color="pink">
 
-**1. System Prompt** — tells the model who it is and what it can do
+**1. System prompt** — role + constraints
 
 </NeonBox>
 
 <NeonBox color="cyan">
 
-**2. Message History** — the running conversation so far
+**2. Message history** — working memory
 
 </NeonBox>
 
 <NeonBox color="yellow">
 
-**3. Tools** — things the model can call (shell, files, search…)
+**3. Tool surface** — actions available to the model
 
 </NeonBox>
 
 <NeonBox color="pink">
 
-**4. Stop Condition** — model stops calling tools → done
+**4. Stop condition** — when to return control
 
 </NeonBox>
 
-
 <!--
-Every agent loop — no matter how fancy — has these same four parts.
+Let's break that loop down into its parts. Every agent loop, no matter how fancy, has these same four things.
 
-The system prompt sets the scene. The message history is the memory. Tools are the hands. And the stop condition is just "the model didn't call any more tools, so we return."
+First, a system prompt. This is where you tell the model who it is and what the rules are. Think of it as the instruction manual.
 
-Keep these four in mind. Everything we look at today is just a variation on these four pieces.
+Second, message history. This is the model's working memory. Every tool call, every result, every response gets appended here. It's how the model remembers what it's already tried.
+
+Third, the tool surface. These are the actions the model can take. Read a file, run a command, search the web, whatever you give it access to.
+
+And fourth, a stop condition. Something has to tell the loop when to quit. Usually that's the model itself deciding it doesn't need to call any more tools. But you can also add hard limits like max iterations or a cost budget.
+
+Keep these four things in your head. Every example from here on maps back to them.
 -->
 
 ---
 layout: section
 ---
 
-# What's a Harness?
+# Part 2
 
-The scaffolding around the model
+## What a harness is
 
 <!--
-Before we look at specific agents, let's define the word we're going to keep using: harness.
-
-What actually is it?
+Now that we have the loop nailed down, let's zoom out. What's all the stuff that wraps around that loop? That's what we're calling a harness.
 -->
 
 ---
 
-## A Harness Is...
+## Harness = control plane around the loop
 
-
-- **Which model** to call and how
-- **What tools** are available
-- **How results** get fed back
-- **When to stop** looping
-- **Any guardrails** — permissions, cost limits, iteration caps
-
-
+- Picks model(s) and call strategy
+- Defines tool schemas and routing
+- Decides how tool outputs are fed back
+- Controls context growth (trim/summarize)
+- Enforces guardrails (permissions, budget, limits)
+- Defines done criteria
 
 <div class="mt-6 grid grid-cols-3 gap-4 text-center text-sm">
-  <NeonBox color="cyan">Claude Code<br/><span class="text-gray-400">a harness</span></NeonBox>
-  <NeonBox color="pink">OpenCode<br/><span class="text-gray-400">a harness</span></NeonBox>
-  <NeonBox color="yellow">ChatGPT Code Interpreter<br/><span class="text-gray-400">a harness</span></NeonBox>
+  <NeonBox color="cyan">Claude Code<br/><span class="text-gray-400">harness</span></NeonBox>
+  <NeonBox color="pink">OpenCode<br/><span class="text-gray-400">harness</span></NeonBox>
+  <NeonBox color="yellow">Code Interpreter<br/><span class="text-gray-400">harness</span></NeonBox>
 </div>
 
+<!--
+A harness is basically the control plane around your agent loop. It's everything that isn't the model itself.
+
+It picks which model to call, defines the tools, decides how to feed results back, manages context so you don't blow your token window, enforces guardrails, and determines when the loop is done.
+
+Here's the thing that's worth internalizing: the model is the engine, but the harness is the vehicle. And most of the product differentiation between coding agents? It lives in the harness, not the model.
+
+Claude Code, OpenCode, ChatGPT's code interpreter -- they're all harnesses. Different tools, different defaults, different UX. Same basic loop underneath.
+-->
+
+---
+
+## Build vs use is a constraints question
+
+| If your primary need is... | Usually start with... |
+|---|---|
+| Fast productivity | Existing harness |
+| Internal APIs/workflows | Custom harness |
+| Strict compliance & policy | Custom/extendable harness |
+| Model/provider portability | Extendable harness |
+| Embedding into your product | SDK-first/custom harness |
+
+<GlowText color="yellow">Use the simplest option that satisfies your constraints.</GlowText>
 
 <!--
-A harness is just the scaffolding you wrap around a model to make it do useful work.
+So should you build your own or use something that already exists? It depends on your constraints.
 
-It decides which model to call. What tools exist. How results flow back. When to stop. And whether there are any guardrails — max iterations, cost limits, permission checks.
+If you just need to get work done right now, grab an existing harness. Claude Code, OpenCode, Cursor -- they're all solid. Don't over-engineer it.
 
-Claude Code, OpenCode, ChatGPT's code interpreter — they're all harnesses. We'll look at some of those in a moment. First let's see what building one actually looks like.
+But if you need to call internal APIs, enforce a specific execution order, satisfy compliance requirements, or embed the agent into your own product, that's when a custom harness starts making sense.
+
+The key question is: what are your actual constraints? Start with the simplest option that satisfies them. You can always add complexity later, but it's really hard to remove it.
 -->
 
 ---
 layout: section
 ---
 
-# Anatomy of a Custom Harness
+# Part 3
+
+## How coding agents fit
 
 <!--
-Let's look at what the inside of a harness actually looks like.
+Alright, let's look at some real coding agents and see how they map to what we just talked about. These are all harnesses. They just made different trade-offs.
+-->
+
+---
+layout: two-cols
+---
+
+## Claude Code
+
+- Strong default coding workflow
+- File + shell tools
+- Permission model
+- Optimized for “do work in this repo now”
+
+::right::
+
+```mermaid {theme: 'dark', scale: 0.52}
+graph TD
+    U["👤 Task"]:::user --> CC["🤖 Claude Code"]:::agent
+    CC --> R["📂 Read files"]:::tool
+    R --> W["✏️ Edit code"]:::tool
+    W --> S["🖥️ Run tests"]:::tool
+    S --> Check{"Pass?"}:::decision
+    Check -- No --> CC
+    Check -- Yes --> Done["✅ Final output"]:::done
+
+    classDef user fill:#2d1a3e,stroke:#ff7edb,stroke-width:2px,color:#ff7edb
+    classDef agent fill:#1a3a5c,stroke:#36f9f6,stroke-width:2px,color:#36f9f6
+    classDef tool fill:#2e2a10,stroke:#fede5d,stroke-width:2px,color:#fede5d
+    classDef decision fill:#1e1a2e,stroke:#848bbd,stroke-width:2px,color:#848bbd
+    classDef done fill:#1a2e1a,stroke:#7ec87e,stroke-width:2px,color:#7ec87e
+```
+
+<!--
+Claude Code is Anthropic's coding agent. It runs in your terminal, and it's optimized for one job: doing real work in a real codebase, right now.
+
+It gives the model file read and write access, shell command execution, and a permission model so it doesn't do anything destructive without asking. The flow is exactly the loop we talked about: read files, edit code, run tests, check if they pass, and if not, loop back and try again.
+
+It's a well-built harness with strong defaults. If you're working in a single repo and just want the model to help you ship, it's a great choice.
+-->
+
+---
+layout: two-cols
+---
+
+## OpenCode
+
+- Open-source alternative
+- Multi-provider support
+- Terminal UX
+- Easy to adapt and extend
+
+::right::
+
+<div class="flex items-center justify-center h-full">
+<NeonBox color="cyan">
+
+**Same loop**
+
+Different defaults,
+provider strategy,
+and extension model
+
+</NeonBox>
+</div>
+
+<!--
+OpenCode is an open-source alternative. Same core idea -- agent loop plus dev tools plus your codebase -- but with some different choices.
+
+It works with multiple model providers, not just Claude. It's community-driven. It has a nice TUI. And you bring your own API keys.
+
+The important thing here isn't the feature comparison. It's that this is the same loop with different defaults, a different provider strategy, and a different extension model. The underlying architecture is the same pattern.
+-->
+
+---
+
+## When off-the-shelf stops being enough
+
+| Constraint | Why teams go custom |
+|---|---|
+| Private/internal systems | Need first-class private tools |
+| Required execution order | Need deterministic workflow gates |
+| Policy/audit requirements | Need custom permission + logging model |
+| Cost/latency targets | Need custom stop/context policies |
+| Product integration | Need SDK/server embedding |
+
+<GlowText color="cyan">This is the decision boundary for building your own harness.</GlowText>
+
+<!--
+So when do these off-the-shelf agents stop being enough?
+
+In my experience, it comes down to a handful of things. You have private internal systems that need first-class tool support, not just "shell out to curl." You need a specific execution order -- like always lint, then test, then deploy -- and you can't trust the model to get the order right every time. You have compliance or audit requirements that need custom permission and logging models. Or you have cost and latency targets that need really specific stop conditions and context management.
+
+When you start hitting these walls, that's the decision boundary. That's when building your own harness stops being over-engineering and starts being the right call.
+-->
+
+---
+layout: section
+---
+
+# Part 4
+
+## Building your own harness
+
+<!--
+OK, so you've decided you need something custom. Let's talk about what that actually looks like in practice.
 -->
 
 ---
 
 ```mermaid {theme: 'dark'}
 graph TD
-    subgraph "Your Custom Harness"
-        P["📝 Your Prompt Template"]:::prompt --> L["☁️ LLM API Call"]:::llm
-        L --> Parse["🔍 Parse Response"]:::parse
-        Parse --> TU{"Tool Use?"}:::decision
-        TU -- Yes --> Router["🗺️ Tool Router"]:::router
-        Router --> T1["🗄️ Run SQL"]:::tool
-        Router --> T2["🔌 Call Internal API"]:::tool
-        Router --> T3["📂 Read/Write Files"]:::tool
-        Router --> T4["🧪 Run Tests"]:::tool
-        T1 & T2 & T3 & T4 --> Append["📋 Append to History"]:::append
-        Append --> Guard["🛡️ Check Guardrails"]:::guard
+    subgraph "Custom Harness Architecture"
+        P["📝 Prompt template"]:::prompt --> L["☁️ LLM call"]:::llm
+        L --> Parse["🔍 Parse response"]:::parse
+        Parse --> TU{"Tool call?"}:::decision
+        TU -- Yes --> Router["🗺️ Route tool"]:::router
+        Router --> T1["🗄️ SQL"]:::tool
+        Router --> T2["🔌 Internal API"]:::tool
+        Router --> T3["📂 File ops"]:::tool
+        Router --> T4["🧪 Tests"]:::tool
+        T1 & T2 & T3 & T4 --> Append["📋 Append results"]:::append
+        Append --> Guard["🛡️ Guardrails"]:::guard
         Guard --> L
-        TU -- No --> Out["✅ Return Result"]:::done
+        TU -- No --> Out["✅ Return"]:::done
     end
 
     classDef prompt fill:#2d1a3e,stroke:#ff7edb,stroke-width:2px,color:#ff7edb
@@ -183,16 +315,16 @@ graph TD
 ```
 
 <!--
-Here's what the inside of a custom harness looks like. Your prompt template goes in. LLM responds. You parse the response. If there's a tool call, a router dispatches it to the right function — your SQL runner, your API client, your file system. Results get appended to history. You check guardrails. Then loop back to the LLM.
+Here's what a custom harness looks like when you draw it out.
 
-When there's no tool call, you return the result.
+Your prompt template goes to the LLM. You parse the response. If there's a tool call, you route it to the right handler -- maybe that's a SQL query against your database, a call to an internal API, file operations, or running tests. The results get appended to history, you check your guardrails, and then you loop back to the LLM.
 
-The guardrails step is the one people skip and regret.
+Notice this is the exact same loop from the first slide. We've just added a tool router and guardrails. That's really all a custom harness is -- the same pattern with your specific tools and your specific safety checks wired in.
 -->
 
 ---
 
-## The Minimal Version
+## Minimal loop (already useful)
 
 ```python
 messages = [system_prompt, user_task]
@@ -201,223 +333,97 @@ while True:
     response = call_llm(messages)
 
     if not response.tool_calls:
-        break
+        return response
 
     for tool_call in response.tool_calls:
         result = execute_tool(tool_call)
         messages.append(tool_call)
         messages.append(result)
-
-return response
 ```
 
-
-<GlowText color="yellow">That's a working agent. Everything else is polish.</GlowText>
-
+<GlowText color="yellow">Small loop, real agent.</GlowText>
 
 <!--
-This is the whole thing. In pseudocode, a working agent loop is about 15 lines.
+And here's the part that surprises people. The minimal version of this is really short.
 
-Start with your messages. Call the LLM. If no tool calls — done. Otherwise execute each tool, append the results, and loop.
+Set up your messages with a system prompt and the user's task. Start a while loop. Call the LLM. If the response doesn't have any tool calls, you're done -- break out and return the answer. If it does have tool calls, execute each one, append the call and the result to your message history, and loop back.
 
-Everything else — better prompts, smarter tool design, error handling, logging, cost tracking — is polish on top of this.
+That's a working agent. Like, actually working. You can run this and it will do useful things.
 
-Don't let the complexity of production agents fool you. The core is this simple.
+Everything else -- better prompts, smarter tool design, error handling, logging, cost tracking -- that's all polish. Important polish, sure. But the core? It's this.
 -->
 
 ---
 
-## Tips for Good Harnesses
+## Practical rules that prevent pain
 
-
-- **Keep tools simple** — one clear job per tool, with good descriptions
-- **Feed back errors** — when a tool fails, return the error; the model will fix its approach
-- **Watch your context window** — long loops = long histories; summarize when needed
-- **Add guardrails** — max iterations, cost limits, permission checks
-- **Log everything** — debugging agent loops without logs is pain
-
-
-<!--
-A few things I've learned the hard way about building harnesses.
-
-Keep tools simple. One job per tool. Write good descriptions — the model can only use what it understands from the description.
-
-Feed errors back to the model. Don't swallow them. Return the error message as the tool result. The model will usually adapt and try a different approach.
-
-Watch your context window. A loop that runs 20 steps accumulates a lot of history. Have a strategy for summarizing or truncating when things get long.
-
-Add guardrails. A loop can loop forever if nothing stops it. Set a max iteration count, a cost limit, or both.
-
-And log everything. When something goes wrong in an agent loop, you need to know exactly what the model did and why.
--->
-
----
-
-## Why Build a Custom One?
-
-| Need | Example |
-|------|---------|
-| Domain-specific tools | SQL queries, your internal APIs |
-| Custom workflows | Always lint → test → commit |
-| Different stop conditions | Stop after 5 steps, or when cost > $2 |
-| Controlled context | Only feed relevant files, not the whole repo |
-| Integration | CI/CD, Slack, dashboards |
-
-
-<GlowText color="cyan">Full control over every part of the loop.</GlowText>
-
+- Keep tools narrow (one job, clear schema)
+- Return errors to model; don’t hide failures
+- Track iterations + token/cost budget per session
+- Summarize history before context quality collapses
+- Log every model response and tool execution
+- Add hard stop criteria from day one
 
 <!--
-So why would you build your own instead of reaching for an existing agent?
+Now, once you've got the loop running, here are the things that'll save you from pain later.
 
-Because sometimes you need something specific. Maybe you need tools that call your internal APIs. Maybe your workflow always has to go lint, then test, then commit — in that exact order. Maybe you want to stop after 5 iterations regardless of whether the model is done. Maybe you want to control exactly which files go into context.
+Keep your tools narrow. One job per tool, clear descriptions. The model can only use what it can understand from the schema.
 
-This is actually the exact line of thinking that led me to build Kit. I wanted a coding agent I could embed in my own Go applications, with full control over the tool surface and the loop behaviour. Off-the-shelf wasn't going to cut it.
+Feed errors back. When a tool call fails, don't swallow the error. Return it to the model. It'll usually figure out what went wrong and try a different approach. This is one of the most underrated things you can do.
 
-Now let's look at some of those off-the-shelf options — because they're still great for general use.
+Track your budget. Iterations, tokens, dollars. Set limits from day one, because an agent loop with no stop condition will happily burn through your API credits at 3am.
+
+Summarize your history before it gets too long. Once context quality starts to degrade, the model makes worse decisions, which leads to more loops, which makes things worse. It's a downward spiral.
+
+And log everything. Every model response, every tool call, every result. When something goes sideways in production, logs and guardrails are the difference between debugging and guessing.
 -->
 
 ---
 layout: section
 ---
 
-# Coding Agents
+# Part 5
 
-Agent loops with developer tools
+## Why I built Kit
 
 <!--
-A coding agent is just a harness where the tools happen to be developer tools: read files, write files, run shell commands, search codebases.
-
-Give a model those tools and a task, and it will iteratively write code, run it, see errors, fix them, and repeat — just like a developer would.
-
-Let's look at two real examples.
+So I want to wrap up by talking about something I've been working on. This is the part where I show my work -- how these ideas turned into a real project.
 -->
 
 ---
-layout: two-cols
+
+## The inspiration: Pi
+
+- Tiny core: `read`, `write`, `edit`, `bash`
+- Minimal prompt + minimal assumptions
+- Extension-first architecture
+- Broad model-provider support
+
+<GlowText color="yellow">Pi convinced me: composability beats kitchen-sink design.</GlowText>
+
+<!--
+Before I get into Kit, I want to give credit where it's due. Pi is a coding agent by Mario Zechner, and it kind of changed how I think about harness design.
+
+Pi's core is radically small. Four tools: read, write, edit, and bash. A system prompt under a thousand tokens. No MCP baked in, no sub-agents, no plan mode in the core.
+
+And the reasoning behind that is actually pretty compelling: modern models already know how to be coding agents. They've been trained on enough code and enough tool-use patterns that they don't need a lot of hand-holding. So the harness should get out of the way and let the model do its thing.
+
+Everything else in Pi is an extension. It ships over fifty example extensions that add back features like plan mode, permission gates, sub-agents, and more. You opt in to what you actually need instead of getting a kitchen sink you can't simplify.
+
+That clicked for me. Composability beats complexity.
+-->
+
 ---
 
-## Claude Code
-
-
-- File read/write
-- Shell command execution
-- Built-in **permission model**
-- Context-aware — understands your project
-
-
-::right::
-
-```mermaid {theme: 'dark', scale: 0.5}
+```mermaid {theme: 'dark', scale: 0.72}
 graph TD
-    U["👤 You type a task"]:::user --> CC["🤖 Claude Code"]:::agent
-    CC --> R["📂 Read files"]:::tool
-    R --> W["✏️ Write / Edit code"]:::tool
-    W --> S["🖥️ Run commands & tests"]:::tool
-    S --> Check{"Tests pass?"}:::decision
-    Check -- No --> CC
-    Check -- Yes --> Done["🎉 Present result"]:::done
-
-    classDef user fill:#2d1a3e,stroke:#ff7edb,stroke-width:2px,color:#ff7edb
-    classDef agent fill:#1a3a5c,stroke:#36f9f6,stroke-width:2px,color:#36f9f6
-    classDef tool fill:#2e2a10,stroke:#fede5d,stroke-width:2px,color:#fede5d
-    classDef decision fill:#1e1a2e,stroke:#848bbd,stroke-width:2px,color:#848bbd
-    classDef done fill:#1a2e1a,stroke:#7ec87e,stroke-width:2px,color:#7ec87e
-```
-
-<!--
-Claude Code is Anthropic's coding agent — it lives in your terminal. Underneath it's the same loop: prompt, think, tool, observe, repeat. The tools are developer-focused: read files, write files, run shell commands. It also has a permission model so it doesn't accidentally nuke your repo.
-
-The diagram on the right shows a typical task flow. It reads relevant files, writes code, runs tests, and if something breaks it loops back and fixes it.
-
-It's a well-built harness around Claude with developer-focused tools. Nothing more, nothing less.
--->
-
----
-layout: two-cols
----
-
-## OpenCode
-
-
-- Open-source alternative
-- **Multi-provider** — not just Claude
-- TUI-based interface
-- Bring your own API keys
-
-
-::right::
-
-<div class="flex items-center justify-center h-full">
-
-<NeonBox color="cyan">
-
-**Same idea, open ecosystem**
-
-Agent loop + dev tools + your codebase
-
-Works with Claude, GPT, Gemini, Ollama, and more
-
-</NeonBox>
-
-</div>
-
-<!--
-OpenCode is the open-source alternative. Same philosophy — agent loop plus developer tools — but it's community-driven, works with any model provider, and has a terminal UI.
-
-The key insight here: both Claude Code and OpenCode are doing the same thing. The loop is identical. What differs is the tools, the UX, the permission model, and which models they support.
--->
-
----
-layout: section
----
-
-# The Inspiration: Pi
-
-A tiny core that changed how I think about harnesses
-
-<!--
-Now I want to talk about a project that really crystallised the right way to think about harness design for me: Pi, by Mario Zechner.
-
-Pi was the direct inspiration for Kit. When I found it, it was one of those "of course, why didn't I think of that" moments.
--->
-
----
-
-## Pi's Radical Bet
-
-
-- Just **4 tools**: `read`, `write`, `edit`, `bash`
-- System prompt **under 1,000 tokens**
-- **No MCP**, no sub-agents, no plan mode baked in
-- Models already know how to be coding agents — **get out of the way**
-
-
-
-<GlowText color="yellow">Everything else is an extension. You opt in to what you need.</GlowText>
-
-
-<!--
-Pi's thesis was this: models already know how to be coding agents. The harness should get out of the way.
-
-So Pi ships with just four tools and a tiny system prompt. That's it. No plan mode. No permission gates. No sub-agents — none of that built in.
-
-Instead, Pi ships 50-plus example extensions that add those features back. You opt in to what you need. You don't pay for what you don't.
-
-When I saw this I thought: this is exactly right. And I want this in Go.
--->
-
----
-
-```mermaid {theme: 'dark', scale: 0.7}
-graph TD
-    subgraph "Pi's Philosophy"
-        Core["⚡ Tiny Core<br/>4 tools + small prompt"]:::core
-        E1["📋 Plan Mode"]:::ext
+    subgraph "Tiny Core + Opt-in Extensions"
+        Core["⚡ Core harness"]:::core
+        E1["📋 Plan mode"]:::ext
         E2["🔒 Permissions"]:::ext
         E3["🤖 Sub-agents"]:::ext
-        E4["🛡️ Path Protection"]:::ext
-        E5["🔧 Your Extension"]:::ext
+        E4["🛡️ Path protection"]:::ext
+        E5["🔧 Team-specific logic"]:::ext
         Core --> E1
         Core --> E2
         Core --> E3
@@ -429,139 +435,78 @@ graph TD
     classDef ext fill:#1e1a2e,stroke:#848bbd,stroke-width:1px,color:#848bbd
 ```
 
-
-Pi supports **15+ LLM providers** — swap from Claude to GPT to Gemini mid-session.
-
-
 <!--
-This diagram shows Pi's architecture. One tiny core. Extensions branching off it. You compose exactly what you need.
+This is what that philosophy looks like visually. You've got a tiny core in the center, and everything else plugs in as an extension. Plan mode, permissions, sub-agents, path protection, your own team-specific logic -- they're all optional layers.
 
-Pi also supports over 15 LLM providers, so you're not locked in. You can switch from Claude to GPT to Gemini mid-session.
-
-That provider-agnostic, extension-first philosophy is what Kit picked up and ran with.
--->
-
----
-layout: section
----
-
-# Kit
-
-So I built one
-
-<!--
-Kit — Knowledge Inference Tool — is my attempt to bring Pi's philosophy to Go.
-
-Same minimal core. Same extension-first thinking. Same provider-agnostic design. Just Go — and that language choice was very intentional.
+The core stays small and stable. The extensions let you customize without forking. It's a really clean separation.
 -->
 
 ---
 layout: two-cols
 ---
 
-## What Kit Brings
+## Kit (open source)
 
-
-- **8 core tools** — `bash`, `read`, `write`, `edit`, `grep`, `find`, `ls`, `spawn_subagent`
-- Extensions in **Go** via Yaegi interpreter
-- **10+ providers** — Anthropic, OpenAI, Gemini, Ollama, Bedrock, more
-- **Single binary** — no `npm install`, just download and run
-- **Go SDK** — embed Kit in your own apps
-
+- 8 core tools:
+  `bash`, `read`, `write`, `edit`, `grep`, `find`, `ls`, `spawn_subagent`
+- Provider-agnostic
+- Extension model in Go
+- Single binary deployment
+- Go SDK + CLI/TUI
 
 ::right::
 
 ```mermaid {theme: 'dark'}
 graph LR
-    subgraph "Kit Architecture"
-        CLI["💻 CLI / TUI"]:::entry --> Agent["🔄 Agent Loop"]:::agent
-        SDK["📦 Go SDK"]:::entry --> Agent
-        ACP["🌐 ACP Server"]:::entry --> Agent
-        Agent --> Tools["🔧 Built-in Tools"]:::tools
-        Agent --> MCP["🔌 MCP Servers"]:::tools
-        Agent --> Ext["⚡ Extensions"]:::tools
-        Agent --> Providers["☁️ LLM Providers"]:::tools
+    subgraph "Kit"
+        CLI["💻 CLI/TUI"]:::entry --> Loop["🔄 Agent loop"]:::agent
+        SDK["📦 Go SDK"]:::entry --> Loop
+        ACP["🌐 Agent server"]:::entry --> Loop
+        Loop --> Tools["🔧 Core tools"]:::leaf
+        Loop --> MCP["🔌 MCP tools"]:::leaf
+        Loop --> Ext["⚡ Extensions"]:::leaf
+        Loop --> LLM["☁️ Providers"]:::leaf
     end
 
     classDef entry fill:#2d1a3e,stroke:#ff7edb,stroke-width:2px,color:#ff7edb
     classDef agent fill:#1a3a5c,stroke:#36f9f6,stroke-width:2px,color:#36f9f6
-    classDef tools fill:#2e2a10,stroke:#fede5d,stroke-width:1px,color:#fede5d
+    classDef leaf fill:#2e2a10,stroke:#fede5d,stroke-width:1px,color:#fede5d
 ```
 
 <!--
-Kit has 8 core tools — slightly more than Pi because Go's tooling benefits from a dedicated grep and find rather than shelling out. The extension system is written in Go using the Yaegi interpreter, so your extensions are first-class Go code.
+So Kit is what happens when you take Pi's ideas and bring them to Go.
 
-The architecture diagram on the right shows something I'm particularly proud of: Kit has three entry points. The CLI and TUI for interactive use, a Go SDK so you can embed Kit directly in your own Go applications, and an ACP server mode so other agents — like OpenCode — can drive Kit as a remote coding agent over stdio.
+The core has eight tools: bash, read, write, edit, grep, find, ls, and spawn_subagent. It's provider-agnostic, so you can use Anthropic, OpenAI, Gemini, Ollama, Bedrock, whatever you want. Extensions are written in Go using the Yaegi interpreter, so they're real code, not config files.
 
-That last one is powerful: Kit can be a sub-agent inside another agent.
+And because it's Go, you get a single binary. No npm install, no dependency hell. Just download it and run. There's also a Go SDK so you can embed Kit directly into your own applications, and it ships with an ACP server mode so other agents can drive it remotely.
+
+The architecture here shows the three entry points -- CLI, SDK, and agent server -- all feeding into the same agent loop, which connects to your tools, MCP servers, extensions, and LLM providers.
 -->
 
 ---
 
-## What I Took from Pi
+## Why this matters to you
 
-| Pi's idea | How Kit does it |
-|---|---|
-| Small tool surface | 8 core tools, no bloat |
-| Extension-first | Go extensions via Yaegi |
-| Provider-agnostic | 10+ providers, auto-routing via models.dev |
-| Observability | Session tree, JSONL persistence, debug logging |
-| Opinionated defaults | Deep customisation via config + extensions |
+Build your own harness if you need:
 
+- First-class tools for your domain
+- Strong control over policy and safety
+- Better observability and debuggability
+- Embedding in your product/backend
+- Freedom to experiment with model/tool strategy
 
-<GlowText color="pink">Pi proved the philosophy. Go's single binary made it deployable anywhere.</GlowText>
+Or start with Kit if you want those capabilities without building from zero.
 
-
-<!--
-Here's what I directly took from Pi when building Kit.
-
-Small surface — check. Extension-first — check. Provider-agnostic — check. I also added stronger observability because I wanted to be able to debug sessions after the fact: session trees, JSONL logs, debug output.
-
-The Go choice specifically means one thing for users: single binary. Download it, run it. No Node, no Python, no virtual environment. That matters a lot if you're deploying Kit as part of a service or CI pipeline — which is exactly the use case I was building for.
--->
-
----
-layout: section
----
-
-# The Spectrum
+<GlowText color="cyan">Start simple. Add complexity only when constraints demand it.</GlowText>
 
 <!--
-Let me give you a mental model for where all of this sits.
--->
+So why does any of this matter to you?
 
----
+If you need first-class tools for your domain -- not just "shell out to something" but actual typed, well-described tools -- a custom harness gives you that. If you need strong control over policy and safety, or better observability into what the model is doing and why, or you want to embed an agent into your product or backend, or you just want the freedom to experiment with different models and tool strategies -- that's when you want to build your own.
 
-```mermaid {theme: 'dark'}
-graph LR
-    A["📞 Bare API Call<br/>no tools"]:::bare --> B["🔧 Simple Harness<br/>few tools, basic loop"]:::simple
-    B --> C["💻 Coding Agent<br/>Claude Code, OpenCode"]:::coding
-    C --> D["⚡ Extensible Agent<br/>Pi, Kit"]:::extensible
-    D --> E["🏗️ Custom Agent<br/>your tools, your rules"]:::custom
+Or, if you want those capabilities without starting from scratch, give Kit a look. That's what it's there for.
 
-    classDef bare fill:#1e1e1e,stroke:#555,stroke-width:1px,color:#888
-    classDef simple fill:#1a2e3a,stroke:#36f9f6,stroke-width:1px,color:#36f9f6
-    classDef coding fill:#1a2e1a,stroke:#7ec87e,stroke-width:2px,color:#7ec87e
-    classDef extensible fill:#2d1a3e,stroke:#ff7edb,stroke-width:2px,color:#ff7edb
-    classDef custom fill:#2e2a10,stroke:#fede5d,stroke-width:2px,color:#fede5d
-```
-
-
-<div class="mt-8 text-center">
-<GlowText color="cyan">You don't always need to be on the right.</GlowText>
-<br/>
-<span class="text-gray-400">Start simple. Add complexity when you actually need it.</span>
-</div>
-
-
-<!--
-Here's the spectrum from simplest to most custom.
-
-A bare API call — no tools, just prompt and response. A simple harness with a few tools. A full coding agent like Claude Code. An extensible agent like Pi, or Kit — which is where I'm sitting with my own work. And fully custom agents built on top.
-
-The temptation is to jump to the right end. Don't. Start with a bare API call. Add a tool when you actually need it. Build up from there.
-
-A lot of problems that look like they need a complex agent loop actually just need a better prompt.
+The main takeaway: start simple. Add complexity only when your constraints actually demand it.
 -->
 
 ---
@@ -572,62 +517,58 @@ layout: center
 
 <div class="mt-8 grid grid-cols-2 gap-4 text-sm">
 
-
 <NeonBox color="pink">
-The <strong>agent loop</strong> is just:<br/>prompt → think → tool → observe → repeat
+Agent loop = <strong>prompt → tool use → observe → repeat</strong>
 </NeonBox>
 
 <NeonBox color="cyan">
-A <strong>harness</strong> is the scaffolding<br/>that makes the loop work
+Harness = <strong>control plane</strong> around that loop
 </NeonBox>
 
 <NeonBox color="yellow">
-Build custom when you need<br/><strong>domain tools, custom flow, or guardrails</strong>
+Coding agents are harnesses with <strong>developer tools</strong>
 </NeonBox>
 
 <NeonBox color="pink">
-<strong>Coding agents</strong> are harnesses<br/>with developer tools
+Build custom when <strong>constraints</strong> justify it
 </NeonBox>
 
 <NeonBox color="cyan">
-<strong>Pi</strong> proved tiny core + extensions<br/>beats kitchen-sink design
+Pi inspired a minimal, extension-first philosophy
 </NeonBox>
 
 <NeonBox color="yellow">
-<strong>Kit</strong> brings that to Go —<br/>single binary, embeddable, extensible
+Kit brings that approach to Go, open source
 </NeonBox>
-
 
 </div>
 
 <!--
-Let's recap.
+Let's bring it all together.
 
-The agent loop is just prompt, think, tool, observe, repeat. No magic.
+An agent loop is just prompt, tool use, observe, repeat. Nothing more.
 
-A harness is everything around the model that makes the loop work — and you can build your own in about 15 lines.
+A harness is the control plane you build around that loop. It's where all the interesting decisions live.
 
-Coding agents are harnesses with developer tools bolted on.
+Coding agents like Claude Code and OpenCode? They're harnesses with developer tools plugged in. Same pattern, different trade-offs.
 
-Pi proved that a tiny core plus an extension system beats a kitchen-sink approach.
+You should build custom when your constraints justify it -- not before. Don't over-engineer something that an off-the-shelf tool handles fine.
 
-And Kit brings that philosophy to Go — single binary, embeddable in your own apps, extensible via Go.
+Pi showed that a tiny core with a good extension system beats trying to build everything in. And Kit brings that approach to Go as an open-source project you can use or learn from.
 -->
 
 ---
 layout: statement
 ---
 
-Start small.
+Understand the loop.
 
-A 20-line loop is a real agent.
+Then choose your harness strategy on purpose.
 
 <!--
-I'll leave you with this.
+Understand the loop first. Then choose your harness strategy on purpose, not by accident.
 
-Don't let the complexity of production agents intimidate you. A 20-line loop is a real agent. The craft is in the tools and the prompts — not in the loop itself.
+If you want to experiment quickly, try Kit. If you need total control, build your own. Either way, you now have the mental model to reason about it.
 
-That's what building Kit taught me more than anything. The loop is easy. The hard part is figuring out the right tool surface and getting the prompts right.
-
-Subscribe for more, drop a comment with what you'd build, and if you want to check out Kit — link is in the description. See you in the next one.
+Thanks for listening. Happy to take questions.
 -->
