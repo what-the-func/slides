@@ -143,6 +143,48 @@ ul, ol {
   font-family: 'JetBrains Mono', monospace;
 }
 
+/* Tables */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85em;
+  margin: 0.5em 0;
+}
+
+thead tr {
+  background: var(--slidev-theme-surface);
+  border-bottom: 2px solid var(--slidev-theme-primary);
+}
+
+thead th {
+  color: var(--slidev-theme-primary);
+  font-weight: 700;
+  padding: 0.6em 1em;
+  text-align: left;
+  text-shadow: 0 0 8px rgba(255, 126, 219, 0.4);
+}
+
+tbody tr {
+  border-bottom: 1px solid rgba(132, 139, 189, 0.2);
+  transition: background 0.2s ease;
+}
+
+tbody tr:hover {
+  background: rgba(54, 249, 246, 0.05);
+}
+
+tbody td {
+  padding: 0.55em 1em;
+  color: #e0e0e0;
+  vertical-align: top;
+}
+
+tbody td:first-child {
+  color: var(--slidev-theme-secondary);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 /* Blockquote */
 blockquote {
   border-left: 3px solid var(--slidev-theme-primary);
@@ -166,6 +208,30 @@ hr {
 .slidev-vclick-hidden {
   opacity: 0;
   transform: translateY(8px);
+}
+
+/* Mermaid diagrams — prevent overflow, scale to fit slide */
+.mermaid,
+.mermaid svg {
+  max-width: 100%;
+  max-height: 100%;
+  height: auto;
+  width: auto;
+  display: block;
+  margin: 0 auto;
+}
+
+/* Slidev wraps mermaid in these containers */
+.slidev-code-wrapper .mermaid,
+.no-line-numbers .mermaid {
+  overflow: visible;
+}
+
+/* The rendered SVG should never exceed the slide canvas */
+.slidev-layout svg[id^="mermaid"] {
+  max-width: 100% !important;
+  max-height: 55vh !important;
+  height: auto !important;
 }
 
 /* Scrollbar */
